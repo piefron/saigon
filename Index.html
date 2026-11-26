@@ -6342,5 +6342,30 @@
 
     requestAnimationFrame(animate);
   </script>
+<script src="/socket.io/socket.io.js"></script>
+<script>
+  const socket = io();
+  const onlinePlayers = {};
+
+  socket.on("connect", () => {
+    console.log("Đã kết nối realtime với ID:", socket.id);
+  });
+
+  socket.on("state", (serverPlayers) => {
+    // Lưu toàn bộ người chơi đang online để game đọc và vẽ
+    for (const id in onlinePlayers) {
+      delete onlinePlayers[id];
+    }
+    for (const id in serverPlayers) {
+      onlinePlayers[id] = serverPlayers[id];
+    }
+  });
+
+  // Gọi hàm này mỗi khi nhân vật/vật thể của bạn thay đổi vị trí hoặc trạng thái
+  function guiViTri(x, y, extra = {}) {
+    if (!socket || !socket.connected) return;
+    socket.emit("move", { x, y, ...extra });
+  }
+</script>
 </body>
 </html>
