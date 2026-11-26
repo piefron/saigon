@@ -1,6 +1,7 @@
 {
-  "name": "play-online",
+  "name": "sai-gon-chill",
   "version": "1.0.0",
+  "description": "Sai Gon Chill realtime multiplayer server",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
