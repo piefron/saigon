@@ -7182,19 +7182,13 @@
         if (!force && nowMs - lastEmitTime < 65) return;
         lastEmitTime = nowMs;
 
- const hasMoveInput = Math.hypot(joyX, joyY) > 0.03 || Boolean(keys["w"] || keys["a"] || keys["s"] || keys["d"]);
-        const currentSpeed = hasMoveInput
-          ? Math.min(1, Math.hypot(joyX, joyY) || 1)
-          : 0;
-
         socket.emit("player_update", {
           clientInstanceId,
           x: playerRig.root.position.x,
           y: playerRig.root.position.y,
           z: playerRig.root.position.z,
           rotY: playerRig.root.rotation.y,
-          speedRatio: currentSpeed,
-
+          speedRatio: Math.min(1, Math.hypot(joyX, joyY) || ((keys["w"] || keys["a"] || keys["s"] || keys["d"]) ? 1 : 0)),
           isRiding: Boolean(gameState.ridingBike),
           posture: gameState.posture || "stand",
           inCathedral: Boolean(gameState.inCathedral),
