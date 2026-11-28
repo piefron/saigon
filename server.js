@@ -15,7 +15,7 @@ const io = new Server(server, {
 
 // Tự động tìm đúng file Index.html hoặc index.html (tránh lỗi phân biệt chữ hoa/thường trên Linux/Render)
 function resolveHtmlFile() {
-  const candidates = ["Index.html", "index.html"];
+  const candidates = ["Index.html", "index.html", "Index_5.html"];
   for (const name of candidates) {
     const fullPath = path.join(__dirname, name);
     if (fs.existsSync(fullPath)) return fullPath;
@@ -27,13 +27,13 @@ app.get("/", (req, res) => {
   res.sendFile(resolveHtmlFile());
 });
 
-// Phục vụ thêm các tài nguyên tĩnh khác nếu có trong cùng thư mục
 app.use(express.static(__dirname));
 
 const players = {};
 
 io.on("connection", (socket) => {
   players[socket.id] = {
+    clientInstanceId: null,
     x: 0,
     y: 0,
     z: 2,
@@ -42,16 +42,18 @@ io.on("connection", (socket) => {
     isRiding: false,
     posture: "stand",
     inCathedral: false,
+    inBitexco: false,
+    bubbleText: "",
     charConfig: null
   };
 
-  // Gửi danh sách người chơi hiện tại cho tất cả client
   io.emit("state", players);
 
-  // Nhận cập nhật vị trí, tư thế, trang phục từ từng người chơi
+  // Nhận cập nhật vị trí, tư thế, bong bóng chat & ngoại hình nhân vật
   socket.on("player_update", (data) => {
     if (!players[socket.id] || !data || typeof data !== "object") return;
 
+    if (typeof data.clientInstanceId === "string") players[socket.id].clientInstanceId = data.clientInstanceId;
     if (typeof data.x === "number") players[socket.id].x = data.x;
     if (typeof data.y === "number") players[socket.id].y = data.y;
     if (typeof data.z === "number") players[socket.id].z = data.z;
@@ -60,6 +62,8 @@ io.on("connection", (socket) => {
     players[socket.id].isRiding = Boolean(data.isRiding);
     if (typeof data.posture === "string") players[socket.id].posture = data.posture;
     players[socket.id].inCathedral = Boolean(data.inCathedral);
+    players[socket.id].inBitexco = Boolean(data.inBitexco);
+    if (typeof data.bubbleText === "string") players[socket.id].bubbleText = data.bubbleText.slice(0, 100);
     if (data.charConfig && typeof data.charConfig === "object") {
       players[socket.id].charConfig = data.charConfig;
     }
@@ -67,20 +71,31 @@ io.on("connection", (socket) => {
     socket.broadcast.emit("state", players);
   });
 
-  // Chuyển tiếp tin nhắn chat cộng đồng tới những người chơi khác
+  // Chuyển tiếp bong bóng chat trên đầu nhân vật kèm senderId
   socket.on("chat_message", (payload) => {
     if (!payload || typeof payload.text !== "string") return;
-    const text = payload.text.trim().slice(0, 140);
+    const text = payload.text.trim().slice(0, 100);
     if (!text) return;
 
     const sender = typeof payload.sender === "string" && payload.sender.trim()
       ? payload.sender.trim().slice(0, 24)
       : "Player";
 
-    socket.broadcast.emit("chat_message", { sender, text });
+    socket.broadcast.emit("chat_message", {
+      senderId: socket.id,
+      clientInstanceId: payload.clientInstanceId || null,
+      sender,
+      text
+    });
   });
 
-  // Xóa người chơi khỏi bản đồ khi thoát
+  // Xóa tạm khỏi bản đồ khi người chơi quay về màn hình tạo nhân vật
+  socket.on("player_leave", () => {
+    delete players[socket.id];
+    io.emit("state", players);
+  });
+
+  // Xóa người chơi khỏi bản đồ khi thoát tab/mất kết nối
   socket.on("disconnect", () => {
     delete players[socket.id];
     io.emit("state", players);
