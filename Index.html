@@ -7338,19 +7338,24 @@
   <script src="/socket.io/socket.io.js"></script>
   <script>
     const socket = io();
+    const onlinePlayers = {};
 
     socket.on("connect", () => {
-      console.log("Đã kết nối tới server:", socket.id);
+      console.log("Đã kết nối realtime:", socket.id);
     });
 
-    // Nhận dữ liệu từ người chơi khác gửi về
-    socket.on("state", (players) => {
-      // Cập nhật vị trí / thao tác của người chơi khác vào game của bạn
+    socket.on("state", (serverPlayers) => {
+      for (const id in onlinePlayers) {
+        delete onlinePlayers[id];
+      }
+      for (const id in serverPlayers) {
+        onlinePlayers[id] = serverPlayers[id];
+      }
     });
 
-    // Gọi hàm này mỗi khi nhân vật/thao tác của bạn thay đổi
-    function sendPlayerState(data) {
-      socket.emit("move", data);
+    function guiViTri(x, y, z = 0) {
+      if (!socket || !socket.connected) return;
+      socket.emit("move", { x, y, z });
     }
   </script>
 </body>
