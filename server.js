@@ -89,7 +89,7 @@ io.on("connection", (socket) => {
     });
   });
 
-  // Xóa tạm khỏi bản đồ khi người chơi quay về màn hình tạo nhân vật
+ // Xóa tạm khỏi bản đồ khi người chơi quay về màn hình tạo nhân vật
   socket.on("player_leave", (payload) => {
     delete players[socket.id];
     if (payload && typeof payload.clientInstanceId === "string") {
