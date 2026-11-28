@@ -15,7 +15,7 @@ const io = new Server(server, {
 
 // Tự động tìm đúng file Index.html hoặc index.html (tránh lỗi phân biệt chữ hoa/thường trên Linux/Render)
 function resolveHtmlFile() {
-  const candidates = ["Index.html", "index.html", "Index_5.html"];
+  const candidates = ["Index.html", "index.html", "saigon.html"];
   for (const name of candidates) {
     const fullPath = path.join(__dirname, name);
     if (fs.existsSync(fullPath)) return fullPath;
@@ -90,10 +90,18 @@ io.on("connection", (socket) => {
   });
 
   // Xóa tạm khỏi bản đồ khi người chơi quay về màn hình tạo nhân vật
-  socket.on("player_leave", () => {
+  socket.on("player_leave", (payload) => {
     delete players[socket.id];
+    if (payload && typeof payload.clientInstanceId === "string") {
+      for (const [id, p] of Object.entries(players)) {
+        if (p && p.clientInstanceId === payload.clientInstanceId) {
+          delete players[id];
+        }
+      }
+    }
     io.emit("state", players);
   });
+
 
   // Xóa người chơi khỏi bản đồ khi thoát tab/mất kết nối
   socket.on("disconnect", () => {
