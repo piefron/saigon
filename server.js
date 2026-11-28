@@ -89,20 +89,6 @@ io.on("connection", (socket) => {
     });
   });
 
- // Xóa tạm khỏi bản đồ khi người chơi quay về màn hình tạo nhân vật
-  socket.on("player_leave", (payload) => {
-    delete players[socket.id];
-    if (payload && typeof payload.clientInstanceId === "string") {
-      for (const [id, p] of Object.entries(players)) {
-        if (p && p.clientInstanceId === payload.clientInstanceId) {
-          delete players[id];
-        }
-      }
-    }
-    io.emit("state", players);
-  });
-
-
   // Xóa người chơi khỏi bản đồ khi thoát tab/mất kết nối
   socket.on("disconnect", () => {
     const leavingPlayer = players[socket.id];
