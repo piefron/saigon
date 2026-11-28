@@ -7335,5 +7335,23 @@
       };
     })();
   </script>
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io();
+
+    socket.on("connect", () => {
+      console.log("Đã kết nối tới server:", socket.id);
+    });
+
+    // Nhận dữ liệu từ người chơi khác gửi về
+    socket.on("state", (players) => {
+      // Cập nhật vị trí / thao tác của người chơi khác vào game của bạn
+    });
+
+    // Gọi hàm này mỗi khi nhân vật/thao tác của bạn thay đổi
+    function sendPlayerState(data) {
+      socket.emit("move", data);
+    }
+  </script>
 </body>
 </html>
