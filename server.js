@@ -33,7 +33,6 @@ const players = {};
 
 io.on("connection", (socket) => {
   players[socket.id] = {
-    started: false,
     clientInstanceId: null,
     x: 0,
     y: 0,
@@ -48,25 +47,12 @@ io.on("connection", (socket) => {
     charConfig: null
   };
 
-  const broadcastActivePlayers = () => {
-    const activeOnly = {};
-    for (const [id, p] of Object.entries(players)) {
-      if (p && p.started === true && p.charConfig && typeof p.charConfig === "object") {
-        activeOnly[id] = p;
-      }
-    }
-    io.emit("state", activeOnly);
-  };
+  io.emit("state", players);
 
+  // Nhận cập nhật vị trí, tư thế, bong bóng chat & ngoại hình nhân vật
   socket.on("player_update", (data) => {
     if (!players[socket.id] || !data || typeof data !== "object") return;
-    if (data.started !== true || !data.charConfig || typeof data.charConfig !== "object") {
-      players[socket.id].started = false;
-      broadcastActivePlayers();
-      return;
-    }
 
-    players[socket.id].started = true;
     if (typeof data.clientInstanceId === "string") players[socket.id].clientInstanceId = data.clientInstanceId;
     if (typeof data.x === "number") players[socket.id].x = data.x;
     if (typeof data.y === "number") players[socket.id].y = data.y;
@@ -78,21 +64,30 @@ io.on("connection", (socket) => {
     players[socket.id].inCathedral = Boolean(data.inCathedral);
     players[socket.id].inBitexco = Boolean(data.inBitexco);
     if (typeof data.bubbleText === "string") players[socket.id].bubbleText = data.bubbleText.slice(0, 100);
-    players[socket.id].charConfig = data.charConfig;
+    if (data.charConfig && typeof data.charConfig === "object") {
+      players[socket.id].charConfig = data.charConfig;
+    }
 
-    broadcastActivePlayers();
+    socket.broadcast.emit("state", players);
   });
 
-  socket.on("player_leave", () => {
-    delete players[socket.id];
-    broadcastActivePlayers();
-  });
+  // Chuyển tiếp bong bóng chat trên đầu nhân vật kèm senderId
+  socket.on("chat_message", (payload) => {
+    if (!payload || typeof payload.text !== "string") return;
+    const text = payload.text.trim().slice(0, 100);
+    if (!text) return;
 
-  socket.on("disconnect", () => {
-    delete players[socket.id];
-    broadcastActivePlayers();
+    const sender = typeof payload.sender === "string" && payload.sender.trim()
+      ? payload.sender.trim().slice(0, 24)
+      : "Player";
+
+    socket.broadcast.emit("chat_message", {
+      senderId: socket.id,
+      clientInstanceId: payload.clientInstanceId || null,
+      sender,
+      text
+    });
   });
-});
 
   // Xóa người chơi khỏi bản đồ khi thoát tab/mất kết nối
   socket.on("disconnect", () => {
