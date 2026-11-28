@@ -7175,34 +7175,30 @@
         });
         emitMyPlayerState(true);
       };
-function emitMyPlayerState(force = false) {
-  if (!socket || !socket.connected || !gameState.started) return;
-  const nowMs = performance.now();
-  if (!force && nowMs - lastEmitTime < 65) return;
-  lastEmitTime = nowMs;
 
-  socket.emit("player_update", {
-    started: true,
-    clientInstanceId,
-    x: playerRig.root.position.x,
-    y: playerRig.root.position.y,
-    z: playerRig.root.position.z,
-    rotY: playerRig.root.rotation.y,
-    speedRatio: Math.min(1, Math.hypot(joyX, joyY) || ((keys["w"] || keys["a"] || keys["s"] || keys["d"]) ? 1 : 0)),
-    isRiding: Boolean(gameState.ridingBike),
-    posture: gameState.posture || "stand",
-    inCathedral: Boolean(gameState.inCathedral),
-    inBitexco: Boolean(gameState.inBitexco),
-    bubbleText: gameState.chatBubbleTimer > 0 ? gameState.chatBubbleText : "",
-    charConfig: gameState.charConfig
-  });
-}
+      function emitMyPlayerState(force = false) {
+        if (!socket || !socket.connected || !gameState.started) return;
+        const nowMs = performance.now();
+        if (!force && nowMs - lastEmitTime < 65) return;
+        lastEmitTime = nowMs;
+
+        socket.emit("player_update", {
+          clientInstanceId,
+          x: playerRig.root.position.x,
+          y: playerRig.root.position.y,
+          z: playerRig.root.position.z,
+          rotY: playerRig.root.rotation.y,
+          speedRatio: Math.min(1, Math.hypot(joyX, joyY) || ((keys["w"] || keys["a"] || keys["s"] || keys["d"]) ? 1 : 0)),
+          isRiding: Boolean(gameState.ridingBike),
+          posture: gameState.posture || "stand",
+          inCathedral: Boolean(gameState.inCathedral),
+          inBitexco: Boolean(gameState.inBitexco),
+          bubbleText: gameState.chatBubbleTimer > 0 ? gameState.chatBubbleText : "",
+          charConfig: gameState.charConfig
+        });
+      }
 
       function ensureRemotePlayer(id, pData) {
-        if (!pData || pData.started !== true || !pData.charConfig || typeof pData.charConfig !== "object") {
-          removeRemotePlayer(id);
-          return null;
-        }
         const cfg = pData.charConfig || gameState.charConfig;
         const sig = getConfigSignature(cfg);
         let entry = remotePlayers.get(id);
