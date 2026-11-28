@@ -105,7 +105,16 @@ io.on("connection", (socket) => {
 
   // Xóa người chơi khỏi bản đồ khi thoát tab/mất kết nối
   socket.on("disconnect", () => {
+    const leavingPlayer = players[socket.id];
+    const leavingInstanceId = leavingPlayer && leavingPlayer.clientInstanceId;
     delete players[socket.id];
+    if (typeof leavingInstanceId === "string") {
+      for (const [id, p] of Object.entries(players)) {
+        if (p && p.clientInstanceId === leavingInstanceId) {
+          delete players[id];
+        }
+      }
+    }
     io.emit("state", players);
   });
 });
