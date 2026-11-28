@@ -7182,13 +7182,17 @@
         if (!force && nowMs - lastEmitTime < 65) return;
         lastEmitTime = nowMs;
 
+        const currentSpeed = (inputMag > 0.02)
+          ? Math.min(1, inputMag)
+          : 0;
+
         socket.emit("player_update", {
           clientInstanceId,
           x: playerRig.root.position.x,
           y: playerRig.root.position.y,
           z: playerRig.root.position.z,
           rotY: playerRig.root.rotation.y,
-          speedRatio: Math.min(1, Math.hypot(joyX, joyY) || ((keys["w"] || keys["a"] || keys["s"] || keys["d"]) ? 1 : 0)),
+          speedRatio: currentSpeed,
           isRiding: Boolean(gameState.ridingBike),
           posture: gameState.posture || "stand",
           inCathedral: Boolean(gameState.inCathedral),
@@ -7222,14 +7226,20 @@
             posture: pData.posture || "stand",
             inCathedral: Boolean(pData.inCathedral),
             inBitexco: Boolean(pData.inBitexco),
+            onRoof: Boolean(pData.onRoof),
             bubbleTimer: 0,
-            lastSeen: performance.now()
+            lastSeen: performance.now(),
+            lastMoveTime: performance.now()
           };
           remotePlayers.set(id, entry);
         }
 
         if (typeof pData.x === "number" && typeof pData.y === "number" && typeof pData.z === "number") {
+          const movedDist = entry.targetPos.distanceTo(new THREE.Vector3(pData.x, pData.y, pData.z));
           entry.targetPos.set(pData.x, pData.y, pData.z);
+          if (movedDist > 0.015) {
+            entry.lastMoveTime = performance.now();
+          }
         }
         if (typeof pData.rotY === "number") {
           entry.targetRotY = pData.rotY;
@@ -7300,7 +7310,12 @@
           setTimeout(() => emitMyPlayerState(true), 60);
         });
       }
-
+      // Gửi heartbeat định kỳ mỗi ~400ms để máy khác luôn biết người chơi còn online kể cả khi đứng yên
+      setInterval(() => {
+        if (gameState.started) {
+          emitMyPlayerState(true);
+        }
+      }, 400);
       window.syncMultiplayerFrame = function (elapsed, dt, inputMag) {
         if (!gameState.started) return;
 
@@ -7314,7 +7329,8 @@
 
         const nowMs = performance.now();
         remotePlayers.forEach((entry, pid) => {
-          if ((socket && pid === socket.id) || nowMs - entry.lastSeen > 15000) {
+          // Chỉ xóa khi thực sự mất tín hiệu lâu (60s), tránh đứng yên bị biến mất
+          if ((socket && pid === socket.id) || nowMs - entry.lastSeen > 60000) {
             removeRemotePlayer(pid);
             return;
           }
@@ -7332,13 +7348,18 @@
           entry.rig.root.visible = sameRoom;
           if (!sameRoom) return;
 
+          const distToTarget = entry.rig.root.position.distanceTo(entry.targetPos);
           entry.rig.root.position.lerp(entry.targetPos, Math.min(1, dt * 12));
           let diffRot = entry.targetRotY - entry.rig.root.rotation.y;
           while (diffRot > Math.PI) diffRot -= Math.PI * 2;
           while (diffRot < -Math.PI) diffRot += Math.PI * 2;
           entry.rig.root.rotation.y += diffRot * Math.min(1, dt * 12);
 
-          entry.rig.animate(elapsed, entry.speedRatio, entry.isRiding, entry.posture);
+          // Khi đứng yên (không còn dịch chuyển hoặc quá ~180ms không đổi vị trí), ép speedRatio = 0 để tay chân đứng yên
+          const isActuallyMoving = distToTarget > 0.03 || (nowMs - entry.lastMoveTime < 180 && entry.speedRatio > 0.03);
+          const effectiveSpeed = isActuallyMoving ? entry.speedRatio : 0;
+
+          entry.rig.animate(elapsed, effectiveSpeed, entry.isRiding, entry.posture);
         });
       };
     })();
